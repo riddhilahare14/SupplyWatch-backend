@@ -25,11 +25,13 @@ _bg_tasks = []
 async def lifespan(app: FastAPI):
     logger.info("Starting %s...", settings.APP_NAME)
 
-    # Create tables (for dev — in prod use alembic)
-    if settings.USE_SQLITE:
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-        logger.info("SQLite tables created")
+    # Create tables automatically on startup
+    async with engine.begin() as conn:
+        if not settings.USE_SQLITE:
+            from sqlalchemy import text
+            await conn.execute(text("CREATE EXTENSION IF NOT EXISTS postgis;"))
+        await conn.run_sync(Base.metadata.create_all)
+    logger.info("Database tables created/verified")
 
     # Initialize Redis
     await get_redis()
